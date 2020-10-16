@@ -1,0 +1,84 @@
+%Code 2 Needle Tumors
+% This code takes all of the segmented images and performs calculations
+% including the width of the needle tumor code, the sum of the individual
+% invasion area, sum of collective invasion area, and extracts the tumor
+% core. 
+
+clear var 
+outputfolder = uigetdir('C:\Users\Owner\OneDrive\Desktop\Stoll Fellowship Code\','Where would you like to store the converted data?');% Enter output folder
+prompt = 'What name handle would you like to use? (s(number).mat will be added automatically)\\n (enter inside single quotes)\\n';
+dlgtitle = 'Name Handle';
+dims = [1 40];
+outputname = inputdlg(prompt, dlgtitle, dims);
+
+prompt = {' What experiment would you like to process? '}; % Enter ExpID
+dlgtitle = 'Select Experiment';
+dims = [1 40];
+ExpID_ = string(inputdlg(prompt, dlgtitle, dims));
+
+seg_folder = strcat('C:\Users\Owner\OneDrive\Desktop\Stoll Fellowship Code\', ExpID_,'_outputfolder_seg');
+filenames = dir(fullfile(seg_folder,'*mat'));
+total_num = numel(filenames);
+
+for m = 1: total_num
+   f = load(fullfile(seg_folder, filenames(m).name)); 
+   % Rename necessary variables 
+   Periphery = f. Periphery;
+   Max_area_thresh = f.Max_area_thresh;
+   Total_Tumor = f. Total_Tumor;
+   distance_to_cav = f. distance_to_cav; 
+   editedMask_cont = f. editedMask_cont;
+   
+   Max_area_thresh_BW = imbinarize(Max_area_thresh);
+
+BW_active_contour_Max = bwlabel(Max_area_thresh_BW);
+stats_c = regionprops(logical(BW_active_contour_Max),'Centroid', 'Area', 'Perimeter', 'MajorAxisLength', 'MinorAxisLength');
+%Summing all of the individual cells plus entire tumor with invasions
+objectnum_c = length(stats_c);
+area_array_c = [];
+for i=1:objectnum
+        s = regionprops(logical(Max_area_thresh), 'Area');
+        areas = cat(1,s.Area);
+        %Concatenate last value of centroids to the end of centroids_arr array (insert as new row to the bottom). 
+        area_arr = [area_array_c; areas];
+end
+%Sum all of the individual cells plus entire tumor with invasions
+total_tumor_area(n) = sum(area_arr);
+
+%h = impixelinfo;
+allareas_c = [stats_c.Area];
+numcol_c = length(allareas_c);
+[sortedAreas_c, sortIndexes_c] = sort(allareas_c, 'descend');
+Max_area_thresh_BW = ismember(BW_active_contour_Max, sortIndexes_c(1));
+imshow(Max_area_thresh_BW);
+
+SE = strel('disk', 80);
+Tumor_core_open = imopen(Max_area_thresh_BW, SE);
+imshow(Tumor_core_open);
+
+%Code to generate complete tumor core; this will help get rid of the
+%curves at the end of the collective invasions that are part of the tumor
+%core
+Tumor_core_full = imopen(Max_area, SE);
+imshow(Tumor_core_full);
+Tumor_core_full_mask = activecontour(Image, Tumor_core_full, 'Chan-Vese', 20);
+imshow(Tumor_core_full_mask);
+
+%Tumor core for smaller image
+Tumor_coreBW_Mask = activecontour(Image, Tumor_core_open, 'Chan-Vese', 20);
+imshow(Tumor_coreBW_Mask);
+
+Max_xcor_cav2 = Max_xcor_cav + 300;% Add pixels to maximum point of cavity 
+[y, x] = find(Tumor_coreBW_Mask);%Locate all nonzero elements in tumor core mask 
+[y_cor, x_cor]= find(x == Max_xcor_cav2);% Find where column = max_xcor_cav value
+Min_y_width = min(y_cor);
+Max_y_width = max(y_cor);
+Width_tumor_core(n) = Max_y_width - Min_y_width;
+%Width_tumor_core = Max_y_width - Min_y_width;
+individual_invasion_sum(n) = sum(allareas(sortIndexes(2:numcol)));
+%individual_invasion_sum = sum(allareas(sortIndexes(2:numcol)));
+%Subtract1 = imsubtract(BW2, Max_area);
+%imshow(Subtract1);
+end
+
+
