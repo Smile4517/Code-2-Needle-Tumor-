@@ -20,16 +20,25 @@ seg_folder = strcat('C:\Users\Owner\OneDrive\Desktop\Stoll Fellowship Code\', Ex
 filenames = dir(fullfile(seg_folder,'*mat'));
 total_num = numel(filenames);
 
-for m = 1: total_num
+for m = 1:total_num
    f = load(fullfile(seg_folder, filenames(m).name)); 
+   % Find the directory separators
+    str = strcat(seg_folder, filenames(m).name);
+    %Extract tumor number
+    slashlocations = regexp(str, '_');
+    substr = extractAfter(str, slashlocations(2)+6);
+    tumor_num = extractBefore(substr, 2);
+    % Extract the day 
+    substr = extractAfter(str, slashlocations(3)+1);
+    day_num = extractBefore( substr, 2);
    % Rename necessary variables 
    Periphery = f. Periphery;
-   Max_area_thresh = f.Max_area_thresh;
+   Max_area_thresh_BW = f. Max_area_thresh_BW;
    Total_Tumor = f. Total_Tumor;
    distance_to_cav = f. distance_to_cav; 
    editedMask_cont = f. editedMask_cont;
-   
-   Max_area_thresh_BW = imbinarize(Max_area_thresh);
+   Image = f.Image;
+   Max_area = f. Max_area; 
 
 BW_active_contour_Max = bwlabel(Max_area_thresh_BW);
 stats_c = regionprops(logical(BW_active_contour_Max),'Centroid', 'Area', 'Perimeter', 'MajorAxisLength', 'MinorAxisLength');
@@ -43,7 +52,7 @@ for i=1:objectnum
         area_arr = [area_array_c; areas];
 end
 %Sum all of the individual cells plus entire tumor with invasions
-total_tumor_area(n) = sum(area_arr);
+total_tumor_area = sum(area_arr);
 
 %h = impixelinfo;
 allareas_c = [stats_c.Area];
@@ -68,17 +77,46 @@ imshow(Tumor_core_full_mask);
 Tumor_coreBW_Mask = activecontour(Image, Tumor_core_open, 'Chan-Vese', 20);
 imshow(Tumor_coreBW_Mask);
 
-Max_xcor_cav2 = Max_xcor_cav + 300;% Add pixels to maximum point of cavity 
+Max_xcor_cav2 = distance_to_cav + 300;% Add pixels to maximum point of cavity 
 [y, x] = find(Tumor_coreBW_Mask);%Locate all nonzero elements in tumor core mask 
 [y_cor, x_cor]= find(x == Max_xcor_cav2);% Find where column = max_xcor_cav value
 Min_y_width = min(y_cor);
 Max_y_width = max(y_cor);
-Width_tumor_core(n) = Max_y_width - Min_y_width;
-%Width_tumor_core = Max_y_width - Min_y_width;
-individual_invasion_sum(n) = sum(allareas(sortIndexes(2:numcol)));
-%individual_invasion_sum = sum(allareas(sortIndexes(2:numcol)));
-%Subtract1 = imsubtract(BW2, Max_area);
-%imshow(Subtract1);
+Width_tumor_core = Max_y_width - Min_y_width;
+individual_invasion_sum = sum(allareas(sortIndexes(2:numcol)));
+
+
+Max_area_Image_L = bwlabel(Max_area_thresh_BW);
+%Max_area_Image_L_M = bwareaopen(Max_area_Image_L, 400);% removes any small fragments 
+stats_Max_Area_thresh = regionprops(logical(Max_area_Image_L), 'Area');
+
+
+% To generate collective invasion image
+Subtract1 = imsubtract(Max_area_thresh_BW, Tumor_core_full_mask);
+imshow(Subtract1);
+
+% When subtracting the two images above, we get a large white region in the
+% area that should be masked. The for loop below sets all of those pixels
+% back to zero
+Subtract1_a = zeros(size(Max_area));
+for j = 1:size(Max_area, 1)
+    for k = 1:size(Max_area, 2)
+        pixel_s = Subtract1(j,k);
+if (k >= (Max_xcor_cav + distance_to_cav))
+    pixel_s = 0;
+else
+    pixel_s = Subtract1(j,k);
+end
+Subtract1_a(j, k) = pixel_s;
+    end
+end
+imshow(Subtract1_a);
+
+Invasions = bwareaopen(Subtract1_a, 1000); % Filters out areas smaller than 600 pixels
+imshow(Invasions); % Final collective invasion image
+
+savename = strcat(outputfolder,'/',outputname,'tu',tumor_num,'_d', day_num, '.mat');
+    save(string(savename),'individual_invasion_sum','Width_tumor_core', 'Tumor_coreBW_Mask', 'total_tumor_area', 'Invasions');
 end
 
 
