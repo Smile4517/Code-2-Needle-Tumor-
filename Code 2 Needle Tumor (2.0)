@@ -4,7 +4,7 @@
 % invasion area, sum of collective invasion area, and extracts the tumor
 % core. 
 
-clear var 
+clear var
 outputfolder = uigetdir('C:\Users\Owner\OneDrive\Desktop\Stoll Fellowship Code\','Where would you like to store the converted data?');% Enter output folder
 prompt = 'What name handle would you like to use? (s(number).mat will be added automatically)\\n (enter inside single quotes)\\n';
 dlgtitle = 'Name Handle';
