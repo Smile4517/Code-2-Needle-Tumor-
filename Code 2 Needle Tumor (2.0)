@@ -4,7 +4,7 @@
 % invasion area, sum of collective invasion area, and extracts the tumor
 % core. 
 
-clear var
+clearvars
 outputfolder = uigetdir('C:\Users\Owner\OneDrive\Desktop\Stoll Fellowship Code\','Where would you like to store the converted data?');% Enter output folder
 prompt = 'What name handle would you like to use? (s(number).mat will be added automatically)\\n (enter inside single quotes)\\n';
 dlgtitle = 'Name Handle';
@@ -67,7 +67,7 @@ stats_c = regionprops(logical(BW_active_contour_Max),'Centroid', 'Area', 'Perime
 objectnum_c = length(stats_c);
 area_array_c = [];
 for i=1:objectnum
-        s = regionprops(logical(Max_area_thresh), 'Area');
+        s = regionprops(logical(Max_area_thresh_BW), 'Area');
         areas = cat(1,s.Area);
         %Concatenate last value of centroids to the end of centroids_arr array (insert as new row to the bottom). 
         area_arr = [area_array_c; areas];
@@ -161,7 +161,6 @@ end
 collective_invasion_area = sum(collective_area_arr);
 
 Invasion_mask = boundarymask(Invasions);
-imshow(labeloverlay(Image1_adjust1,Invasion_mask, 'Transparency',0));%generates 
 
 BW_active_contour_L2 = bwlabel(Tumor_coreBW_Mask);% Regionprops to extract information from the tumor core
 stats_core = regionprops(logical(BW_active_contour_L2),'Centroid', 'Area', 'Perimeter', 'MajorAxisLength', 'MinorAxisLength');
