@@ -4,7 +4,7 @@
 % invasion area, sum of collective invasion area, and extracts the tumor
 % core. 
 
-clearvars
+clear var 
 outputfolder = uigetdir('C:\Users\Owner\OneDrive\Desktop\Stoll Fellowship Code\','Where would you like to store the converted data?');% Enter output folder
 prompt = 'What name handle would you like to use? (s(number).mat will be added automatically)\\n (enter inside single quotes)\\n';
 dlgtitle = 'Name Handle';
@@ -42,10 +42,10 @@ for m = 1:total_num
    Max_xcor_cav = f. Max_xcor_cav;
    cavity_BW = f. cavity_BW;
 
-   
-   
+    
 BW_active_contour_L = bwlabel(editedMask_cont);
 stats = regionprops(logical(BW_active_contour_L),'Centroid', 'Area', 'Perimeter', 'MajorAxisLength', 'MinorAxisLength');
+
 
 %Summing all of the individual cells plus entire tumor with invasions
 objectnum = length(stats);
@@ -140,6 +140,54 @@ Subtract1_a(j, k) = pixel_s;
 end
 imshow(Subtract1_a);
 
+BW_active_contour_thresh = zeros(size(BW_active_contour_L));
+for u = 1:size(BW_active_contour_L, 1)
+    for r = 1:size(BW_active_contour_L, 2)
+        pixel_s = BW_active_contour_L(u,r);
+if (r >= (Max_xcor_cav + distance_to_cav + 300))% stricter cut off to determine pythagorean distance to cavity
+    pixel_s = 0;
+else
+    pixel_s = BW_active_contour_L(u,r);
+end
+BW_active_contour_thresh(u, r) = pixel_s;
+    end
+end
+imshow(BW_active_contour_thresh);
+
+%Compute the Pythagorean distance from points to cavity
+Mask_entire = boundarymask(BW_active_contour_thresh);
+Mask_entire = double(Mask_entire);
+Mask_entire(Mask_entire == 0) = NaN; 
+[rows_cav, columns_cav] = find(cavity_BW == 1);%Find nonzero pixel coordinates in cavity
+cav_rightmost = max(columns_cav);%Find the rightmost pixel value of the cavity
+cav_rightmost_row_idx = find(columns_cav == cav_rightmost);%Find the corresponding row values
+[rows_tum, columns_tum] = find(Mask_entire == 1);%Find nonzero pixel coordinates in Max area(collective invasions and tumor core)
+num_tum_c = length(columns_tum); %Calculates total row numbers of tumor periphery
+num_cav = length(cav_rightmost_row_idx); %Calculates number of rows that correspond to same rightmost value of cavity
+
+for j = 1: num_cav
+    for i = 1: num_tum_c
+        % Gets row value for each row that corresponds to the rightmost
+        % pixel coordinate of the cavity
+        row_val_cav = rows_cav(cav_rightmost_row_idx(j));
+	%Compute the pythagorean dist calculation between the rightmost point
+	%of the cavity to all points in the border of the tumor image
+    dist(i, j) = sqrt((cav_rightmost - columns_tum(i)).^2 + (row_val_cav - rows_tum(i)).^2);
+    min_dist = min(dist); %Outputs minimum value in each column of the resulting distance matrix
+    %Checks to see if there are zeros and converts them to NaN
+    l = length(min_dist);
+    for k = 1:l
+        if min_dist(k) == 0
+            min_dist(k) = NaN;
+        end 
+    end
+    end
+end
+%Once the zero values are converted to NaN, we find the minimum distance to
+%from the tumor boundary to the maximum point of the cavity
+
+ Pythagorean_dist = min(min_dist);
+
 Invasions = bwareaopen(Subtract1_a, 1000); % Filters out areas smaller than 600 pixels
 imshow(Invasions); % Final collective invasion image
 
@@ -168,7 +216,7 @@ table_core = struct2table(stats_core);
 
 
 savename = strcat(outputfolder,'/',outputname,'tu',tumor_num,'_d', day_num, '.mat');
-    save(string(savename),'individual_invasion_sum','Width_tumor_core', 'Tumor_coreBW_Mask', 'total_tumor_area', 'Invasions', 'total_fraction_invaded', 'collective_invasion_area', 'table_core');
+    save(string(savename), 'individual_invasion_sum','Width_tumor_core', 'Tumor_coreBW_Mask', 'total_tumor_area', 'Invasions', 'total_fraction_invaded', 'collective_invasion_area', 'table_core','Pythagorean_dist');
 end
 
 
